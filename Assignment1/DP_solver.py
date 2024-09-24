@@ -114,7 +114,6 @@ class IterativePolicyEvaluation(DynamicProgramming):
         self.evaluate()
         # raise NotImplementedError
 
-
 class PolicyIteration(DynamicProgramming):
     def __init__(self, grid_world: GridWorld, discount_factor: float = 1.0):
         """Constructor for PolicyIteration
@@ -134,13 +133,8 @@ class PolicyIteration(DynamicProgramming):
         Returns:
             float
         """
-        # TODO: Get the value for a state by calculating the q-values
-        value = 0.0
-        num_actions = self.grid_world.get_action_space()
-        for action in range(num_actions):
-            value += self.policy[state, action] * self.get_q_value(state, action)
-        return value
-
+        # TODO: Get the value for a state by calculating the q-values        
+        return self.get_q_value(state, self.policy[state])
         # raise NotImplementedError
 
     def policy_evaluation(self):
@@ -163,12 +157,12 @@ class PolicyIteration(DynamicProgramming):
         # TODO: Implement the policy improvement step
         policy_stable = True
         for s in range(self.grid_world.get_state_space()):
-            old_action = np.argmax(self.policy[s])
+            old_action = self.policy[s]
             action_values = np.zeros(self.grid_world.get_action_space())
             for a in range(self.grid_world.get_action_space()):
                 action_values[a] = self.get_q_value(s, a)
             new_action = np.argmax(action_values)
-            self.policy[s] = np.eye(self.grid_world.get_action_space())[new_action]
+            self.policy[s] = new_action
             if old_action != new_action:
                 policy_stable = False
         return policy_stable
@@ -178,18 +172,15 @@ class PolicyIteration(DynamicProgramming):
         """Run the algorithm until convergence"""
         # TODO: Implement the policy iteration algorithm until convergence
         # Initialize policy (only action: 0 1 2 3) 不知道這個初始化會不會造成結果上的差異，可以寫在run內嗎?
-        self.policy = np.ones((self.grid_world.get_state_space(), 4))/4
-        # for s in range(self.grid_world.get_state_space()):
-        #     self.policy[s, 0] = 1
+        # 這邊的policy是 deterministic policy: 所以policy只有一維，也就是固定好每個state的action是甚麼了
         time = 1
         while True:
             self.policy_evaluation()
             policy_stable = self.policy_improvement()
-            print(time)
+            # print(time)
             if policy_stable:
                 break
             time += 1
-        self.policy = np.argmax(self.policy, axis=1)
         # raise NotImplementedError
 
 
@@ -213,11 +204,10 @@ class ValueIteration(DynamicProgramming):
             float
         """
         # TODO: Get the value for a state by calculating the q-values
-        value = 0.0
-        num_actions = self.grid_world.get_action_space()
-        for action in range(num_actions):
-            value += self.policy[state, action] * self.get_q_value(state, action)
-        return value
+        action_value = np.zeros(self.grid_world.get_action_space())
+        for a in range(self.grid_world.get_action_space()):
+            action_value[a] = self.get_q_value(state, a)   
+        return action_value       
         # raise NotImplementedError
 
     def policy_evaluation(self):
@@ -227,11 +217,8 @@ class ValueIteration(DynamicProgramming):
             delta = 0.0  
             v_new = np.zeros(self.grid_world.get_state_space())
             for s in range(self.grid_world.get_state_space()):
-                v = self.values[s]   
-                action_value = np.zeros(self.grid_world.get_action_space())
-                for a in range(self.grid_world.get_action_space()):
-                    action_value[a] = self.get_q_value(s, a)
-                v_new[s] = max(action_value)
+                v = self.values[s]
+                v_new[s] = max(self.get_state_value(s))
                 delta = max(delta, abs(v - v_new[s]))
             self.values = v_new # State should be updated after the iteration
             if delta < self.threshold:
@@ -241,39 +228,19 @@ class ValueIteration(DynamicProgramming):
     def policy_improvement(self):
         """Improve the policy based on the evaluated values"""
         # TODO: Implement the policy improvement step
-        policy_stable = True
+        # Value iteration不需要iterate policy
         for s in range(self.grid_world.get_state_space()):
-            old_action = np.argmax(self.policy[s])
-            action_values = np.zeros(self.grid_world.get_action_space())
-            for a in range(self.grid_world.get_action_space()):
-                action_values[a] = self.get_q_value(s, a)
-            new_action = np.argmax(action_values)
-            self.policy[s] = np.eye(self.grid_world.get_action_space())[new_action]
-            if old_action != new_action:
-                policy_stable = False
-        return policy_stable
+            new_action = np.argmax(self.get_state_value(s))
+            self.policy[s] = new_action
         # raise NotImplementedError
 
     def run(self) -> None:
         """Run the algorithm until convergence"""
         # TODO: Implement the value iteration algorithm until convergence
-        self.policy = np.zeros((self.grid_world.get_state_space(), 4))
-        for s in range(self.grid_world.get_state_space()):
-            self.policy[s, 0] = 1
-        time = 1
-        while True:
-            self.policy_evaluation()
-            policy_stable = self.policy_improvement()
-            print(time)
-            if policy_stable:
-                break
-            time += 1
-        self.policy = np.argmax(self.policy, axis=1)
+        self.policy_evaluation()
+        self.policy_improvement()
 
-
-        # raise NotImplementedError
-
-
+import heapq 
 class AsyncDynamicProgramming(DynamicProgramming):
     def __init__(self, grid_world: GridWorld, discount_factor: float = 1.0):
         """Constructor for ValueIteration
@@ -283,8 +250,108 @@ class AsyncDynamicProgramming(DynamicProgramming):
             discount_factor (float, optional): Discount factor gamma. Defaults to 1.0.
         """
         super().__init__(grid_world, discount_factor)
+    
+    def get_state_value(self, state: int) -> float:
+        """Get the value for a state
 
+        Args:
+            state (int)
+
+        Returns:
+            float
+        """
+        # TODO: Get the value for a state by calculating the q-values
+        action_value = np.zeros(self.grid_world.get_action_space())
+        for a in range(self.grid_world.get_action_space()):
+            action_value[a] = self.get_q_value(state, a)   
+        return action_value   
+
+    
+    def policy_evaluation(self):
+        """Evaluate the policy and update the values"""
+        # TODO: Implement the policy evaluation step
+        while True:
+            delta = 0.0  
+            for s in range(self.grid_world.get_state_space()):
+                v = self.values[s]
+                self.values[s] = max(self.get_state_value(s))
+                delta = max(delta, abs(v - self.values[s]))
+            if delta < self.threshold:
+                break 
+        # raise NotImplementedError
+
+    def policy_improvement(self):
+        """Improve the policy based on the evaluated values"""
+        # TODO: Implement the policy improvement step
+        policy_stable = True
+        for s in range(self.grid_world.get_state_space()):
+            old_action = self.policy[s]
+            new_action = np.argmax(self.get_state_value(s))
+            self.policy[s] = new_action
+            if old_action != new_action:
+                policy_stable = False
+        return policy_stable
+        # raise NotImplementedError
+
+    def in_place_DP(self) -> None:
+        # TODO: Implement the value iteration algorithm until convergence
+        self.policy_evaluation()
+        self.policy_improvement()
+            
+    def prioritized_sweeping(self): # 不確定對不對
+        PQueue = [] # priority queue
+        bellman_err = np.zeros(self.grid_world.get_state_space()) # Store error
+        for s in range(self.grid_world.get_state_space()):
+            v = self.values[s]
+            self.values[s] = max(self.get_state_value(s))
+            bellman_err[s] = abs(v - self.values[s])
+        largest_err_s = np.argmax(bellman_err)
+        heapq.heappush(PQueue, (-bellman_err[largest_err_s], largest_err_s))
+
+        delta = 0.0
+        while PQueue:
+            # print(PQueue)
+            p, s = heapq.heappop(PQueue)
+            v = self.values[s]
+            self.values[s] = max(self.get_state_value(s))
+            delta = max(delta, abs(v - self.values[s]))            
+            if delta < self.threshold:
+                break 
+            for s in range(self.grid_world.get_state_space()):
+                v = self.values[s]
+                self.values[s] = max(self.get_state_value(s))
+                bellman_err[s] = abs(v - self.values[s])
+            largest_err_s = np.argmax(bellman_err)
+            if bellman_err[largest_err_s] > self.threshold:
+                heapq.heappush(PQueue, (-bellman_err[largest_err_s], largest_err_s))
+        self.policy_improvement()
+    
+    
+    def realtime_DP(self):
+        # 只對於探索過的狀態進行更新
+        # Initialize a set to keep track of visited states
+               
+        for s in range(self.grid_world.get_state_space()):
+            visited_states = []
+            while True:
+                delta = 0.0  
+                v = self.values[s]
+                self.values[s] = max(self.get_state_value(s))
+                next_action = np.argmax(self.get_state_value(s))
+                self.policy[s] = next_action 
+                visited_states.append([s,self.values[s]] )
+                next_state, reward, done = self.grid_world.step(s, next_action)
+                if done:
+                    break
+                s = next_state
+            delta = max(delta, abs(v - self.values[s]))
+            if delta < self.threshold:
+                break         
+                   
     def run(self) -> None:
         """Run the algorithm until convergence"""
         # TODO: Implement the async dynamic programming algorithm until convergence
-        raise NotImplementedError
+        # self.in_place_DP()
+        self.prioritized_sweeping()
+        # self.realtime_DP()
+        # raise NotImplementedError
