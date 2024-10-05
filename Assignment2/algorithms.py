@@ -71,9 +71,36 @@ class MonteCarloPrediction(ModelFreePrediction):
         """Run the algorithm until max_episode"""
         # TODO: Update self.values with first-visit Monte-Carlo method
         current_state = self.grid_world.reset()
+        returns = np.zeros(self.state_space)
+        N_count = np.zeros(self.state_space)
         while self.episode_counter < self.max_episode:
-            next_state, reward, done = self.collect_data()
-            continue
+            # generate episode
+            episode = []
+            done = False
+            while not done:
+                next_state, reward, done = self.collect_data()
+                episode.append((current_state, reward))
+                current_state = next_state
+
+            states_in_episode = [x[0] for x in episode]
+    
+            # visited_states = set()
+            G = 0
+            for t in range(len(episode)-1, -1, -1): # 反向遍歷，直到算到那個state是第一次在所有state中出現，最後會走回到起點
+                state, reward = episode[t]
+                G = self.discount_factor*G + reward   
+                
+                # 這邊的第一次是從頭數過來的第一次，不是反向回來的第一次!
+                if t == states_in_episode.index(state):
+                    returns[state] += G
+                    N_count[state] += 1
+                    self.values[state] = returns[state]/N_count[state]
+
+
+                
+                # if state not in visited_states: 
+                    # visited_states.add(state)
+
 
 
 class TDPrediction(ModelFreePrediction):
@@ -96,8 +123,16 @@ class TDPrediction(ModelFreePrediction):
         # TODO: Update self.values with TD(0) Algorithm
         current_state = self.grid_world.reset()
         while self.episode_counter < self.max_episode:
-            next_state, reward, done = self.collect_data()
-            continue
+            episode = []
+            done = False
+            while not done:
+                next_state, reward, done = self.collect_data()
+                episode.append((current_state, reward))
+                # 注意done的next state就直接設0了
+                self.values[current_state] += self.lr*(reward + self.discount_factor*self.values[next_state]*(1-done) \
+                                                       - self.values[current_state])
+                current_state = next_state
+            # continue
 
 
 class NstepTDPrediction(ModelFreePrediction):
@@ -122,8 +157,47 @@ class NstepTDPrediction(ModelFreePrediction):
         # TODO: Update self.values with N-step TD Algorithm
         current_state = self.grid_world.reset()
         while self.episode_counter < self.max_episode:
-            next_state, reward, done = self.collect_data()
-            continue
+            episode = []
+            current_state = self.grid_world.reset()
+            done = False
+            t = 0
+
+            while not done:
+                next_state, reward, done = self.collect_data()
+                episode.append((current_state, reward, next_state))
+                T = len(episode)
+                if done:
+                    T = t+1
+
+                tao = t - self.n + 1  # 和 n 步的差距
+
+                # 代表此時已經走了 n 步以上了，可以開始累加reward
+                if tao >= 0:
+                    G = 0
+                    # Sum of rewards for n steps or until episode end
+                    for i in range(tao+1, min(tao + self.n, T)):
+                        G += self.discount_factor ** (i - tao-1) * episode[i][1]
+                    # Add the estimated value of the future state if within the episode length
+                    if tao + self.n < T: # 還沒走到終點
+                        G += self.discount_factor ** self.n * self.values[episode[tao + self.n][0]]
+
+                    # Update the value of the state at time step tao
+                    state_tao = episode[tao][0]
+                    self.values[state_tao] += self.lr * (G - self.values[state_tao])
+
+                current_state = next_state
+                t += 1
+
+                if tao == T - 1:
+                    break
+
+            # # End of episode - update the remaining steps
+            for tao in range(t - self.n + 1, t):
+                G = 0
+                for i in range(tao, t):
+                    G += self.discount_factor ** (i - tao) * episode[i][1]
+                self.values[episode[tao][0]] += self.lr * (G - self.values[episode[tao][0]])
+
 
 # =========================== 2.2 model free control ===========================
 class ModelFreeControl:
