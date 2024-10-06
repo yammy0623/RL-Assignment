@@ -166,7 +166,6 @@ class NstepTDPrediction(ModelFreePrediction):
                     
                     if done:
                         T = t + 1 # 縮短T的範圍到episode的長度
-
                 tao = t - self.n + 1  # 退回去 n 個 step 前來更新。因為更新值即為該state往前後算n個的reward
 
                 # 代表此時已經走了 n 步以上了，可以開始累加reward
