@@ -170,10 +170,8 @@ class NstepTDPrediction(ModelFreePrediction):
                 tao = t - self.n + 1  # 退回去 n 個 step 前來更新。因為更新值即為該state往前後算n個的reward
 
                 # 代表此時已經走了 n 步以上了，可以開始累加reward
-                
                 if tao >= 0:
                     G = 0
-
                     for i in range(tao, min(tao + self.n, T)):  # 累加 n 個reward，如果到終點了，加到終點就好
                         # print(i)
                         G += (self.discount_factor ** (i - tao)) * episode[i][1]
