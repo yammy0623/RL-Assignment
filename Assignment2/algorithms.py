@@ -94,10 +94,7 @@ class MonteCarloPrediction(ModelFreePrediction):
                 if t == states_in_episode.index(state):
                     returns[state] += G
                     N_count[state] += 1
-                    self.values[state] = returns[state]/N_count[state]
-
-
-                
+                    self.values[state] = returns[state]/N_count[state]                
                 # if state not in visited_states: 
                     # visited_states.add(state)
 
@@ -158,41 +155,38 @@ class NstepTDPrediction(ModelFreePrediction):
         current_state = self.grid_world.reset()
         while self.episode_counter < self.max_episode:
             episode = []
-            current_state = self.grid_world.reset()
             done = False
             t = 0
+            T = float("inf")
 
             while not done:
-                next_state, reward, done = self.collect_data()
-                episode.append((current_state, reward, next_state))
-                T = len(episode)
-                if done:
-                    T = t+1
+                if t < T:
+                    next_state, reward, done = self.collect_data()
+                    episode.append((current_state, reward, next_state))
+                    
+                    if done:
+                        T = t + 1 # 縮短T的範圍到episode的長度
 
-                tao = t - self.n + 1  # 和 n 步的差距
+                tao = t - self.n + 1  # 退回去 n 個 step 前來更新。因為更新值即為該state往前後算n個的reward
 
                 # 代表此時已經走了 n 步以上了，可以開始累加reward
+                
                 if tao >= 0:
                     G = 0
-                    # Sum of rewards for n steps or until episode end
-                    for i in range(tao+1, min(tao + self.n, T)):
-                        G += self.discount_factor ** (i - tao-1) * episode[i][1]
-                    # Add the estimated value of the future state if within the episode length
-                    if tao + self.n < T: # 還沒走到終點
-                        G += self.discount_factor ** self.n * self.values[episode[tao + self.n][0]]
 
-                    # Update the value of the state at time step tao
-                    state_tao = episode[tao][0]
-                    self.values[state_tao] += self.lr * (G - self.values[state_tao])
+                    for i in range(tao, min(tao + self.n, T)):  # 累加 n 個reward，如果到終點了，加到終點就好
+                        # print(i)
+                        G += (self.discount_factor ** (i - tao)) * episode[i][1]
+                    if tao + self.n < T: # 還沒走到終點，把next state value更新進去，走到終點就不用加上next state value
+                        G += (self.discount_factor ** self.n) * self.values[episode[t][2]]
+                        state_tao = episode[tao][0]
+                        self.values[state_tao] += self.lr * (G - self.values[state_tao])
 
                 current_state = next_state
                 t += 1
 
-                if tao == T - 1:
-                    break
-
-            # # End of episode - update the remaining steps
-            for tao in range(t - self.n + 1, t):
+            # 還有剩下的value 沒有被update到，直接單純利用R來更新，跟Monte Carlo一樣
+            for tao in range(t - self.n, t):
                 G = 0
                 for i in range(tao, t):
                     G += self.discount_factor ** (i - tao) * episode[i][1]
