@@ -247,7 +247,17 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         """Evaluate the policy and update the values after one episode"""
         # TODO: Evaluate state value for each Q(s,a)
         
-        raise NotImplementedError
+
+        for state, action in enumerate(state_trace, action_trace):
+            action_probs = self.policy[state]  
+            for action in range(self.grid_world.get_action_space()):
+                next_state, reward, done = self.grid_world.step(action) 
+                if not done:
+                    reward += self.discount_factor * self.values[next_state] 
+                self.q_values[state][action] += action_probs[action] * self.q_values[state][action]
+
+
+        # raise NotImplementedError
         
 
     def policy_improvement(self) -> None:
@@ -268,7 +278,15 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         while iter_episode < max_episode:
             # TODO: write your code here
             # hint: self.grid_world.reset() is NOT needed here
-            
+            # RUN Episode
+            done = False
+            while not done:
+                current_state = self.grid_world.get_current_state()  # Get the current state
+                
+
+                
+                
+            iter_episode += 1
             raise NotImplementedError
 
 
