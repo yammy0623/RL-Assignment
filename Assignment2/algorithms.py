@@ -246,25 +246,25 @@ class MonteCarloPolicyIteration(ModelFreeControl):
     def policy_evaluation(self, state_trace, action_trace, reward_trace) -> None:
         """Evaluate the policy and update the values after one episode"""
         # TODO: Evaluate state value for each Q(s,a)
+        G = 0
+        T = len(state_trace)
+        for i in range(T-1, -1, -1):
+            G += self.discount_factor ** (T-i) * reward_trace[i-1]
+            self.q_values[state_trace[i]][action_trace[i-1]] = self.q_values[state_trace[i]][action_trace[i-1]] + self.lr*(G - self.q_values[state_trace[i]][action_trace[i-1]])
         
-
-        for state, action in enumerate(state_trace, action_trace):
-            action_probs = self.policy[state]  
-            for action in range(self.grid_world.get_action_space()):
-                next_state, reward, done = self.grid_world.step(action) 
-                if not done:
-                    reward += self.discount_factor * self.values[next_state] 
-                self.q_values[state][action] += action_probs[action] * self.q_values[state][action]
-
-
-        # raise NotImplementedError
-        
+        # state value最後會get出來，所以不用自己從q value寫到state value
 
     def policy_improvement(self) -> None:
         """Improve policy based on Q(s,a) after one episode"""
         # TODO: Improve the policy
+        for s in range(self.state_space):
+            for a in range(self.action_space):
+                if a == np.argmax(self.q_values[s]):
+                    self.policy[s][a] = self.epsilon/self.action_space + 1 - self.epsilon
+                else:
+                    self.policy[s][a] = self.epsilon/self.action_space
 
-        raise NotImplementedError
+        # raise NotImplementedError
 
 
     def run(self, max_episode=1000) -> None:
@@ -281,13 +281,26 @@ class MonteCarloPolicyIteration(ModelFreeControl):
             # RUN Episode
             done = False
             while not done:
-                current_state = self.grid_world.get_current_state()  # Get the current state
+                # current_state = self.grid_world.get_current_state()  # Get the current state
+                action = np.argmax(self.policy[current_state]) 
+                next_state, reward, done = self.grid_world.step(action)
+                state_trace.append(next_state) 
+                action_trace.append(action)
+                reward_trace.append(reward)
+                current_state = next_state
+                self.policy_evaluation(state_trace, action_trace, reward_trace)
+                self.policy_improvement()
+            print(done)
                 
-
+            
+            
+            state_trace   = [current_state]
+            action_trace  = []
+            reward_trace  = []
                 
                 
             iter_episode += 1
-            raise NotImplementedError
+            # raise NotImplementedError
 
 
 class SARSA(ModelFreeControl):
