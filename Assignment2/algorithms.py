@@ -286,7 +286,6 @@ class MonteCarloPolicyIteration(ModelFreeControl):
 
                 
                 
-            iter_episode += 1
             raise NotImplementedError
 
 
