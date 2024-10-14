@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import json
+import matplotlib.pyplot as plt
 
 from algorithms import (
     MonteCarloPrediction,
@@ -154,6 +155,7 @@ def run_MC_policy_iteration(grid_world: GridWorld, iter_num: int):
     grid_world.reset()
     print()
 
+
 def run_SARSA(grid_world: GridWorld, iter_num: int):
     print(bold(underline("SARSA Policy Iteration")))
     policy_iteration = SARSA(
@@ -208,8 +210,75 @@ def run_Q_Learning(grid_world: GridWorld, iter_num: int):
     grid_world.reset()
     print()
 
+def analysis():
+    v_gt = np.load("prediction_GT.npy")
+    grid_world = init_grid_world("maze.txt",INIT_POS)
+    all_state_value = []
+    for seed in range(1, 51):
+        # state_value = run_MC_prediction(grid_world,seed)
+        state_value = run_TD_prediction(grid_world,seed)   
+        all_state_value.append(state_value)
+    v_avg = np.mean(all_state_value, axis=0)
+    bias = v_avg - v_gt
+    var = np.var(all_state_value, axis=0)
+
+    # grid_world.visualize(
+    #     bias,
+    #     title=f"TD(0) Prediction (Bias for 50 seeds)",
+    #     show=False,
+    #     filename=f"TD0_prediction_bias.png",
+    # )
+    # grid_world.visualize(
+    #     var,
+    #     title=f"TD(0) Prediction (Variance for 50 seeds)",
+    #     show=False,
+    #     filename=f"TD0_prediction_var.png",
+    # )
+    
+    grid_world.visualize(
+        bias,
+        title=f"TD0 Prediction (Bias for 50 seeds)",
+        show=False,
+        filename=f"TD0_prediction_bias.png",
+    )
+    grid_world.visualize(
+        var,
+        title=f"TD0 Prediction (Variance for 50 seeds)",
+        show=False,
+        filename=f"TD0_prediction_var.png",
+    )
+    print("Mean Bias: " + str(np.mean(bias)))
+    print("Mean Var: " + str(np.mean(var)))
+
+    np.save('TD0_v_avg.npy', v_avg)
+    np.save('TD0_bias.npy', bias)
+
+def MC_curve_analysis():
+    grid_world = init_grid_world("maze.txt")
+    iter_num = 512000
+    epsilon_set = [0.1, 0.2, 0.3, 0.4]
+    plt.figure()
+
+    for e in epsilon_set:
+        policy_iteration = MonteCarloPolicyIteration(
+                grid_world, 
+                discount_factor=DISCOUNT_FACTOR,
+                learning_rate=LEARNING_RATE,
+                epsilon= e,
+        )
+        policy_iteration.run(max_episode=iter_num)
+        lr = policy_iteration.learning_curve
+        loss = policy_iteration.loss_curve
+        plt.plot(range(1, len(lr)+1), loss, label=f'epsilon = {e}')
+        plt.xlabel('Episode')
+        plt.ylabel('Average Non-discounted Episodic Reward (Last 10 Episodes)')
+        plt.title('Learning Curve')
+        plt.show()
+
+
 if __name__ == "__main__":
-    seed = 1
+    # analysis()
+    MC_curve_analysis()
     # grid_world = init_grid_world("maze.txt",INIT_POS)
     # 2-1
     # run_MC_prediction(grid_world,seed)
@@ -217,7 +286,7 @@ if __name__ == "__main__":
     # run_NstepTD_prediction(grid_world,seed)
 
     # 2-2
-    grid_world = init_grid_world("maze.txt")
-    run_MC_policy_iteration(grid_world, 512000)
+    # grid_world = init_grid_world("maze.txt")
+    # run_MC_policy_iteration(grid_world, 512000)
     # run_SARSA(grid_world, 512000)
     # run_Q_Learning(grid_world, 50000)
