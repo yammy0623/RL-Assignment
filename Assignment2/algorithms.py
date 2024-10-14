@@ -300,8 +300,8 @@ class MonteCarloPolicyIteration(ModelFreeControl):
             action_trace  = []
             reward_trace  = []
             iter_episode += 1
-            if iter_episode % 100 == 0:
-                print(iter_episode)
+            # if iter_episode % 100 == 0:
+            #     print(iter_episode)
 
 
 class SARSA(ModelFreeControl):
@@ -357,8 +357,8 @@ class SARSA(ModelFreeControl):
                     break
 
             iter_episode += 1
-            if iter_episode % 100 == 0:
-                print(iter_episode)
+            # if iter_episode % 100 == 0:
+                # print(iter_episode)
 
 
 class Q_Learning(ModelFreeControl):
@@ -436,5 +436,5 @@ class Q_Learning(ModelFreeControl):
                 
 
             iter_episode += 1            
-            if iter_episode % 100 == 0:
-                print(iter_episode)
+            # if iter_episode % 100 == 0:
+                # print(iter_episode)
