@@ -247,10 +247,12 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         """Evaluate the policy and update the values after one episode"""
         # TODO: Evaluate state value for each Q(s,a)
         G = 0
-        T = len(state_trace)
-        for i in range(T-1, -1, -1):
-            G += self.discount_factor ** (T-i) * reward_trace[i-1]
-            self.q_values[state_trace[i]][action_trace[i-1]] = self.q_values[state_trace[i]][action_trace[i-1]] + self.lr*(G - self.q_values[state_trace[i]][action_trace[i-1]])
+        for i in range(len(reward_trace)-1, -1, -1):
+            reward = reward_trace[i]
+            state = state_trace[i]
+            action = action_trace[i]
+            G = self.discount_factor * G + reward
+            self.q_values[state][action] += self.lr*(G - self.q_values[state][action])
         
         # state value最後會get出來，所以不用自己從q value寫到state value
 
@@ -275,31 +277,31 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         state_trace   = [current_state]
         action_trace  = []
         reward_trace  = []
+        seed = 1
+        rng = np.random.default_rng(seed)
+                
         while iter_episode < max_episode:
             # TODO: write your code here
             # hint: self.grid_world.reset() is NOT needed here
             # RUN Episode
             done = False
             while not done:
-                # current_state = self.grid_world.get_current_state()  # Get the current state
-                action = np.argmax(self.policy[current_state]) 
+                current_state = self.grid_world.get_current_state()  # Get the current state
+                action_probs = self.policy[current_state]  
+                action = np.random.choice(self.action_space, p=action_probs) # random choose action based on all action probs
                 next_state, reward, done = self.grid_world.step(action)
                 state_trace.append(next_state) 
                 action_trace.append(action)
                 reward_trace.append(reward)
-                current_state = next_state
-                self.policy_evaluation(state_trace, action_trace, reward_trace)
-                self.policy_improvement()
-            print(done)
-                
-            
-            
-            state_trace   = [current_state]
+            # print(done)
+            self.policy_evaluation(state_trace, action_trace, reward_trace)
+            self.policy_improvement()               
+            state_trace   = [self.grid_world.get_current_state()]
             action_trace  = []
             reward_trace  = []
-                
-                
             iter_episode += 1
+            if iter_episode % 100 == 0:
+                print(iter_episode)
 
 
 class SARSA(ModelFreeControl):
@@ -320,8 +322,16 @@ class SARSA(ModelFreeControl):
     def policy_eval_improve(self, s, a, r, s2, a2, is_done) -> None:
         """Evaluate the policy and update the values after one step"""
         # TODO: Evaluate Q value after one step and improve the policy
-        
-        raise NotImplementedError
+
+        self.q_values[s][a] += self.lr*(r + self.discount_factor*self.q_values[s2][a2]*(1-is_done) \
+                                                       - self.q_values[s][a])
+        for a in range(self.action_space):
+            if a == np.argmax(self.q_values[s]):
+                self.policy[s][a] = self.epsilon/self.action_space + 1 - self.epsilon
+            else:
+                self.policy[s][a] = self.epsilon/self.action_space  
+                              
+        # raise NotImplementedError
 
     def run(self, max_episode=1000) -> None:
         """Run the algorithm until convergence."""
@@ -335,8 +345,21 @@ class SARSA(ModelFreeControl):
         while iter_episode < max_episode:
             # TODO: write your code here
             # hint: self.grid_world.reset() is NOT needed here
-            
-            raise NotImplementedError
+            while True:
+                current_state = self.grid_world.get_current_state()                
+                action_probs = self.policy[current_state]
+                action = np.random.choice(self.action_space, p=action_probs)
+                next_state, reward, is_done = self.grid_world.step(action)
+                next_action_probs = self.policy[next_state] 
+                next_action = np.random.choice(self.action_space, p=next_action_probs)
+                self.policy_eval_improve(current_state, action, reward, next_state, next_action, is_done)
+                if not is_done:
+                    break
+
+            iter_episode += 1
+            if iter_episode % 100 == 0:
+                print(iter_episode)
+
 
 class Q_Learning(ModelFreeControl):
     def __init__(
@@ -358,16 +381,28 @@ class Q_Learning(ModelFreeControl):
 
     def add_buffer(self, s, a, r, s2, d) -> None:
         # TODO: add new transition to buffer
-        raise NotImplementedError
+        self.buffer.append([s, a, r, s2, d])
+        # raise NotImplementedError
 
     def sample_batch(self) -> np.ndarray:
         # TODO: sample a batch of index of transitions from the buffer
-        raise NotImplementedError
+        index = np.random.randint(0, len(self.buffer)-1, self.sample_batch_size)
+        batch = np.array([self.buffer[i] for i in index])
+        return batch
+
+        # raise NotImplementedError
 
     def policy_eval_improve(self, s, a, r, s2, is_done) -> None:
         """Evaluate the policy and update the values after one step"""
         #TODO: Evaluate Q value after one step and improve the policy
-        raise NotImplementedError
+        self.q_values[s][a] += self.lr*(r + self.discount_factor*max(self.q_values[s2])*(1-is_done) \
+                                                       - self.q_values[s][a])
+        for a in range(self.action_space):
+            if a == np.argmax(self.q_values[s]):
+                self.policy[s][a] = self.epsilon/self.action_space + 1 - self.epsilon
+            else:
+                self.policy[s][a] = self.epsilon/self.action_space  
+        # raise NotImplementedError
 
     def run(self, max_episode=1000) -> None:
         """Run the algorithm until convergence."""
@@ -379,9 +414,27 @@ class Q_Learning(ModelFreeControl):
         prev_r = None
         is_done = False
         transition_count = 0
+
         while iter_episode < max_episode:
             # TODO: write your code here
-            # hint: self.grid_world.reset() is NOT needed here
+            # hint: self.grid_world.reset() is NOT needed here       
+            while True:
+                current_state = self.grid_world.get_current_state()
+                action_probs = self.policy[current_state]
+                action = np.random.choice(self.action_space, p=action_probs)
+                next_state, reward, is_done = self.grid_world.step(action)               
+                self.add_buffer(current_state, action, reward, next_state, is_done)
 
-            raise NotImplementedError
-            
+                transition_count += 1
+                
+                if transition_count % self.update_frequency == 0:
+                    batch = self.sample_batch()
+                    for s, a, r, s2, d in batch:
+                        self.policy_eval_improve(int(s), int(a), r, int(s2), d)
+                if is_done:
+                    break
+                
+
+            iter_episode += 1            
+            if iter_episode % 100 == 0:
+                print(iter_episode)
