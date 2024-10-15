@@ -95,7 +95,8 @@ class MonteCarloPrediction(ModelFreePrediction):
                     returns[state] += G
                     N_count[state] += 1
                     self.values[state] = returns[state]/N_count[state]                
-
+                # if state not in visited_states: 
+                    # visited_states.add(state)
 
 
 
@@ -241,24 +242,17 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         super().__init__(grid_world, discount_factor)
         self.lr      = learning_rate
         self.epsilon = epsilon
-        # add
-        self.learning_curve = []
-        self.loss_curve = []
 
     def policy_evaluation(self, state_trace, action_trace, reward_trace) -> None:
         """Evaluate the policy and update the values after one episode"""
         # TODO: Evaluate state value for each Q(s,a)
         G = 0
-        loss_trace = []
         for i in range(len(reward_trace)-1, -1, -1):
             reward = reward_trace[i]
             state = state_trace[i]
             action = action_trace[i]
             G = self.discount_factor * G + reward
-            loss = G - self.q_values[state][action]
-            self.q_values[state][action] += self.lr*loss
-            loss_trace.append(loss)
-            
+            self.q_values[state][action] += self.lr*(G - self.q_values[state][action])
         
         # state value最後會get出來，所以不用自己從q value寫到state value
 
@@ -285,7 +279,6 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         reward_trace  = []
         seed = 1
         rng = np.random.default_rng(seed)
-        learning_curve = []
                 
         while iter_episode < max_episode:
             # TODO: write your code here
@@ -307,13 +300,8 @@ class MonteCarloPolicyIteration(ModelFreeControl):
             action_trace  = []
             reward_trace  = []
             iter_episode += 1
-
             # if iter_episode % 100 == 0:
             #     print(iter_episode)
-            if iter_episode >= max_episode - 10:
-                print(iter_episode)
-                print(len(np.mean(reward_trace)))
-                learning_curve.append(np.mean(reward_trace))
 
 
 class SARSA(ModelFreeControl):
