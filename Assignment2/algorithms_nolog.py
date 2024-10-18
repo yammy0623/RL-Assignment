@@ -277,8 +277,7 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         state_trace   = [current_state]
         action_trace  = []
         reward_trace  = []
-        seed = 1
-        rng = np.random.default_rng(seed)
+
                 
         while iter_episode < max_episode:
             # TODO: write your code here
@@ -342,6 +341,7 @@ class SARSA(ModelFreeControl):
         prev_a = None
         prev_r = None
         is_done = False
+
         while iter_episode < max_episode:
             # TODO: write your code here
             # hint: self.grid_world.reset() is NOT needed here

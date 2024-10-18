@@ -357,7 +357,7 @@ class SARSA(ModelFreeControl):
                 self.policy[s][a] = self.epsilon/self.action_space + 1 - self.epsilon
             else:
                 self.policy[s][a] = self.epsilon/self.action_space
-        return loss
+        return abs(loss)
                               
         # raise NotImplementedError
 
@@ -451,7 +451,7 @@ class Q_Learning(ModelFreeControl):
                 self.policy[s][a] = self.epsilon/self.action_space + 1 - self.epsilon
             else:
                 self.policy[s][a] = self.epsilon/self.action_space 
-        return loss
+        return abs(loss)
         # raise NotImplementedError
 
     def run(self, max_episode=1000) -> None:
@@ -500,18 +500,19 @@ class Q_Learning(ModelFreeControl):
             else:
                 loss_per_episode.append(np.mean(loss_trace))
                 reward_per_episode.append(np.mean(reward_trace))
-            iter_episode += 1
+            
             # if iter_episode % 100 == 0:
                 # print(iter_episode)
-            if iter_episode >= 10:
-                lr = np.mean(reward_per_episode[-10:])
-                loss = np.mean(loss_per_episode[-10:])
-                # self.learning_curve.append(lr)
-                # self.loss_curve.append(loss)
-                wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
-            else:
-                lr = np.mean(reward_per_episode)
-                loss = np.mean(loss_per_episode)
-                # self.learning_curve.append(lr)
-                # self.loss_curve.append(loss)
-                wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
+                if iter_episode >= 10:
+                    lr = np.mean(reward_per_episode[-10:])
+                    loss = np.mean(loss_per_episode[-10:])
+                    # self.learning_curve.append(lr)
+                    # self.loss_curve.append(loss)
+                    wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
+                else:
+                    lr = np.mean(reward_per_episode)
+                    loss = np.mean(loss_per_episode)
+                    # self.learning_curve.append(lr)
+                    # self.loss_curve.append(loss)
+                    wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
+            iter_episode += 1
