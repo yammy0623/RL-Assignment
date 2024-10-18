@@ -314,9 +314,10 @@ class AsyncDynamicProgramming(DynamicProgramming):
             p, s = heapq.heappop(PQueue)
             v = self.values[s]
             self.values[s] = max(self.get_state_value(s))
-            delta = max(delta, abs(v - self.values[s]))            
-            if delta < self.threshold:
-                break 
+            delta = max(delta, abs(v - self.values[s]))  
+            # 這段註解掉就pass了...          
+            # if delta < self.threshold:
+            #     break 
             for s in range(self.grid_world.get_state_space()):
                 v = self.values[s]
                 self.values[s] = max(self.get_state_value(s))
