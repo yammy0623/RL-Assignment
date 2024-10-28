@@ -438,7 +438,74 @@ class GridWorld:
             tuple: next_state, reward, done, truncation
         """
         # TODO implement the step function here
-        raise NotImplementedError
+        # truncation 表示是否由於外部條件而強制終止，例如達到最大步數限制或其他設定的限制。
+        self._step_count += 1
+        state_coord = self._state_list[self._current_state]
+        if self._step_count >= self.max_step:
+            truncation = True
+        else:
+            truncation = False
+        
+        # Terminal states
+        if self._is_goal_state(state_coord):
+            next_state = self._current_state
+            return next_state, self._goal_reward, True, truncation
+        
+        if self._is_trap_state(state_coord):
+            next_state = self._current_state
+            return next_state, self._trap_reward, True, truncation
+        
+        if self._is_exit_state(state_coord):
+            next_state = self._current_state
+            return next_state, self._exit_reward, True, truncation
+        
+        if self._is_lava_state(state_coord):
+            next_state = self._current_state
+            return next_state, self._step_reward, True, truncation
+        
+        # Non Terminal states
+        # 一旦採到bait後，他後面的step都會有bait_step_penalty
+        if self._is_bait_state(state_coord):
+            next_state_coord = self._get_next_state(state_coord, action)
+            next_state = self._state_list.index(next_state_coord)
+            self._current_state = next_state
+            self.bite()
+            return next_state, self._bait_reward, False, truncation
+        
+        # 拿到key，door就可以打開
+        if self._is_key_state(state_coord):
+            self.open_door()
+            next_state_coord = self._get_next_state(state_coord, action)
+            next_state = self._state_list.index(next_state_coord)
+            # change environment
+            if self._is_baited:
+                next_state += len(self._state_list)
+            self._current_state = next_state
+
+            return next_state, self.step_reward, False, truncation
+                
+        if self._is_door_state(state_coord):
+            next_state_coord = self._get_next_state(state_coord, action)
+            next_state = self._state_list.index(next_state_coord)
+            self._current_state = next_state
+            return next_state, self.step_reward, False, truncation 
+
+        # Portal
+        if self._is_portal_state(state_coord):
+            for i in range(2):
+                if not self._current_state == self._portal_state[i]:
+                    next_state = self._portal_state[i]
+                    self._current_state = next_state
+                    print(next_state)
+            return next_state, self.step_reward, False, truncation            
+
+        # Empty State
+        next_state_coord = self._get_next_state(state_coord, action)
+        next_state = self._state_list.index(next_state_coord)
+        self._current_state = next_state
+        return next_state, self.step_reward, False, truncation
+
+        # raise NotImplementedError
 
     def reset(self) -> int:
         """Reset the environment
@@ -447,7 +514,26 @@ class GridWorld:
             int: initial state
         """
         # TODO implement the reset function here
-        raise NotImplementedError
+        # Close the door and Place the bait
+        self.close_door()
+        self.place_bait()        
+        # Reset the step count        
+        self._step_count = 0
+
+        # Initial State
+        # On Emplty state
+        # Left to the Lava
+        empty_state = np.argwhere(self._maze == self.OBJECT_TO_INDEX["EMPTY"])
+        if np.any(self._maze == self.OBJECT_TO_INDEX["LAVA"]):
+            leftmost_lava_state = min(np.argwhere(self._maze == self.OBJECT_TO_INDEX["LAVA"]), key=lambda x: x[1])
+            selected_state = [empty for empty in empty_state if empty[1] < leftmost_lava_state[1]]
+        else:
+            selected_state = empty_state
+        choose_state_coord = selected_state[np.random.randint(len(selected_state))]
+        self._current_state = self._state_list.index(tuple(choose_state_coord))
+        return self._current_state        
+
+        # raise NotImplementedError
 
     #############################
     # Visualize the environment #
