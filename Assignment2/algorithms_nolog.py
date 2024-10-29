@@ -1,6 +1,5 @@
 import numpy as np
 import json
-import wandb
 from collections import deque
 
 from gridworld import GridWorld
@@ -96,7 +95,8 @@ class MonteCarloPrediction(ModelFreePrediction):
                     returns[state] += G
                     N_count[state] += 1
                     self.values[state] = returns[state]/N_count[state]                
-
+                # if state not in visited_states: 
+                    # visited_states.add(state)
 
 
 
@@ -242,26 +242,17 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         super().__init__(grid_world, discount_factor)
         self.lr      = learning_rate
         self.epsilon = epsilon
-        # add
-        self.learning_curve = []
-        self.loss_curve = []
 
     def policy_evaluation(self, state_trace, action_trace, reward_trace) -> None:
         """Evaluate the policy and update the values after one episode"""
         # TODO: Evaluate state value for each Q(s,a)
         G = 0
-        loss_record = []
         for i in range(len(reward_trace)-1, -1, -1):
             reward = reward_trace[i]
             state = state_trace[i]
             action = action_trace[i]
             G = self.discount_factor * G + reward
-            loss = G - self.q_values[state][action]
-            self.q_values[state][action] += self.lr*loss     
-            # add
-            loss_record.append(abs(loss))
-        return np.mean(loss_record)
-
+            self.q_values[state][action] += self.lr*(G - self.q_values[state][action])
         
         # state value最後會get出來，所以不用自己從q value寫到state value
 
@@ -286,11 +277,6 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         state_trace   = [current_state]
         action_trace  = []
         reward_trace  = []
-        seed = 1
-        rng = np.random.default_rng(seed)
-        
-        loss_per_episode = []
-        reward_per_episode = []
 
                 
         while iter_episode < max_episode:
@@ -307,29 +293,15 @@ class MonteCarloPolicyIteration(ModelFreeControl):
                 action_trace.append(action)
                 reward_trace.append(reward)
             # print(done)
-            loss_per_episode.append(self.policy_evaluation(state_trace, action_trace, reward_trace))
-            reward_per_episode.append(np.mean(reward_trace))
+            self.policy_evaluation(state_trace, action_trace, reward_trace)
             self.policy_improvement()               
-  
-            # if iter_episode % 100 == 0:
-            #     print(iter_episode)
-            if iter_episode >= 10:
-                lr = np.mean(reward_per_episode[-10:])
-                loss = np.mean(loss_per_episode[-10:])
-                # self.learning_curve.append(lr)
-                # self.loss_curve.append(loss)
-                wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
-            else:
-                lr = np.mean(reward_per_episode)
-                loss = np.mean(loss_per_episode)
-                # self.learning_curve.append(lr)
-                # self.loss_curve.append(loss)
-                wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
-
             state_trace   = [self.grid_world.get_current_state()]
             action_trace  = []
             reward_trace  = []
             iter_episode += 1
+            # if iter_episode % 100 == 0:
+            #     print(iter_episode)
+
 
 class SARSA(ModelFreeControl):
     def __init__(
@@ -349,15 +321,14 @@ class SARSA(ModelFreeControl):
     def policy_eval_improve(self, s, a, r, s2, a2, is_done) -> None:
         """Evaluate the policy and update the values after one step"""
         # TODO: Evaluate Q value after one step and improve the policy
-        loss = r + self.discount_factor*self.q_values[s2][a2]*(1-is_done) - self.q_values[s][a]
-                                                       
-        self.q_values[s][a] += self.lr*loss
+
+        self.q_values[s][a] += self.lr*(r + self.discount_factor*self.q_values[s2][a2]*(1-is_done) \
+                                                       - self.q_values[s][a])
         for a in range(self.action_space):
             if a == np.argmax(self.q_values[s]):
                 self.policy[s][a] = self.epsilon/self.action_space + 1 - self.epsilon
             else:
-                self.policy[s][a] = self.epsilon/self.action_space
-        return abs(loss)
+                self.policy[s][a] = self.epsilon/self.action_space  
                               
         # raise NotImplementedError
 
@@ -370,14 +341,10 @@ class SARSA(ModelFreeControl):
         prev_a = None
         prev_r = None
         is_done = False
-        
-        loss_per_episode = []
-        reward_per_episode = []
+
         while iter_episode < max_episode:
             # TODO: write your code here
             # hint: self.grid_world.reset() is NOT needed here
-            reward_trace  = []
-            loss_trace = []
             while True:
                 current_state = self.grid_world.get_current_state()                
                 action_probs = self.policy[current_state]
@@ -385,28 +352,13 @@ class SARSA(ModelFreeControl):
                 next_state, reward, is_done = self.grid_world.step(action)
                 next_action_probs = self.policy[next_state] 
                 next_action = np.random.choice(self.action_space, p=next_action_probs)
-                loss = self.policy_eval_improve(current_state, action, reward, next_state, next_action, is_done)
-                loss_trace.append(loss)
-                reward_trace.append(reward)
+                self.policy_eval_improve(current_state, action, reward, next_state, next_action, is_done)
                 if not is_done:
                     break
-            loss_per_episode.append(np.mean(loss_trace))
-            reward_per_episode.append(np.mean(reward_trace))
+
             iter_episode += 1
             # if iter_episode % 100 == 0:
                 # print(iter_episode)
-            if iter_episode >= 10:
-                lr = np.mean(reward_per_episode[-10:])
-                loss = np.mean(loss_per_episode[-10:])
-                # self.learning_curve.append(lr)
-                # self.loss_curve.append(loss)
-                wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
-            else:
-                lr = np.mean(reward_per_episode)
-                loss = np.mean(loss_per_episode)
-                # self.learning_curve.append(lr)
-                # self.loss_curve.append(loss)
-                wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
 
 
 class Q_Learning(ModelFreeControl):
@@ -443,15 +395,13 @@ class Q_Learning(ModelFreeControl):
     def policy_eval_improve(self, s, a, r, s2, is_done) -> None:
         """Evaluate the policy and update the values after one step"""
         #TODO: Evaluate Q value after one step and improve the policy
-        loss = r + self.discount_factor*max(self.q_values[s2])*(1-is_done) - self.q_values[s][a]
-                                                       
-        self.q_values[s][a] += self.lr*loss
+        self.q_values[s][a] += self.lr*(r + self.discount_factor*max(self.q_values[s2])*(1-is_done) \
+                                                       - self.q_values[s][a])
         for a in range(self.action_space):
             if a == np.argmax(self.q_values[s]):
                 self.policy[s][a] = self.epsilon/self.action_space + 1 - self.epsilon
             else:
-                self.policy[s][a] = self.epsilon/self.action_space 
-        return abs(loss)
+                self.policy[s][a] = self.epsilon/self.action_space  
         # raise NotImplementedError
 
     def run(self, max_episode=1000) -> None:
@@ -465,15 +415,9 @@ class Q_Learning(ModelFreeControl):
         is_done = False
         transition_count = 0
 
-
-        loss_per_episode = []
-        reward_per_episode = []
-
         while iter_episode < max_episode:
             # TODO: write your code here
-            # hint: self.grid_world.reset() is NOT needed here   
-            loss_trace = []
-            reward_trace = []    
+            # hint: self.grid_world.reset() is NOT needed here       
             while True:
                 current_state = self.grid_world.get_current_state()
                 action_probs = self.policy[current_state]
@@ -486,33 +430,11 @@ class Q_Learning(ModelFreeControl):
                 if transition_count % self.update_frequency == 0:
                     batch = self.sample_batch()
                     for s, a, r, s2, d in batch:
-                        loss = self.policy_eval_improve(int(s), int(a), r, int(s2), d)
-                        loss_trace.append(loss)
-                        reward_trace.append(r)
+                        self.policy_eval_improve(int(s), int(a), r, int(s2), d)
                 if is_done:
                     break
                 
-            # print(loss_trace)
-            # print(reward_trace)
-            if not loss_trace and not reward_trace:
-                loss_per_episode.append(0)
-                reward_per_episode.append(0)
-            else:
-                loss_per_episode.append(np.mean(loss_trace))
-                reward_per_episode.append(np.mean(reward_trace))
-            
+
+            iter_episode += 1            
             # if iter_episode % 100 == 0:
                 # print(iter_episode)
-                if iter_episode >= 10:
-                    lr = np.mean(reward_per_episode[-10:])
-                    loss = np.mean(loss_per_episode[-10:])
-                    # self.learning_curve.append(lr)
-                    # self.loss_curve.append(loss)
-                    wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
-                else:
-                    lr = np.mean(reward_per_episode)
-                    loss = np.mean(loss_per_episode)
-                    # self.learning_curve.append(lr)
-                    # self.loss_curve.append(loss)
-                    wandb.log({"Episode": iter_episode, "lr": lr, "loss": loss})
-            iter_episode += 1

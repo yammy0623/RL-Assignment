@@ -1,6 +1,8 @@
 import random
 import numpy as np
 import json
+import matplotlib.pyplot as plt
+import wandb
 
 from algorithms import (
     MonteCarloPrediction,
@@ -154,6 +156,7 @@ def run_MC_policy_iteration(grid_world: GridWorld, iter_num: int):
     grid_world.reset()
     print()
 
+
 def run_SARSA(grid_world: GridWorld, iter_num: int):
     print(bold(underline("SARSA Policy Iteration")))
     policy_iteration = SARSA(
@@ -207,21 +210,167 @@ def run_Q_Learning(grid_world: GridWorld, iter_num: int):
     )
     grid_world.reset()
     print()
-import time
-if __name__ == "__main__":
-    seed = 1
-    # start_time = time.time()
-    grid_world = init_grid_world("maze.txt",INIT_POS)
-    # 2-1
-    run_MC_prediction(grid_world,seed)
-    run_TD_prediction(grid_world,seed)
-    run_NstepTD_prediction(grid_world,seed)
 
-    # # 2-2
-    grid_world = init_grid_world("maze.txt")
+def analysis(model_name):
+    v_gt = np.load("prediction_GT.npy")
+    grid_world = init_grid_world("maze.txt",INIT_POS)
+    all_state_value = []
+
+    wandb.init(project=model_name + "diff")
+    for seed in range(1, 51):
+        if model_name == "MC_prediction_all":
+            state_value = run_MC_prediction(grid_world,seed)
+        elif model_name == "TD0_prediction_all":
+            state_value = run_TD_prediction(grid_world,seed)   
+        all_state_value.append(state_value)
+        log_dict = {f"state_{i}": value for i, value in enumerate(state_value - v_gt)}
+        wandb.log(log_dict)
+        # wandb.log({"mean_state_value": np.mean(state_value)})
+
+    wandb.finish()
+    v_avg = np.mean(all_state_value, axis=0)
+    bias = v_avg - v_gt
+    var = np.var(all_state_value, axis=0)
+
+    if model_name == "MC_prediction_all":
+        grid_world.visualize(
+            bias,
+            title=f"MC Prediction (Bias for 50 seeds)",
+            show=False,
+            filename=f"MC_prediction_bias.png",
+        )
+        grid_world.visualize(
+            var,
+            title=f"MC Prediction (Variance for 50 seeds)",
+            show=False,
+            filename=f"MC_prediction_var.png",
+        )
+        print("Mean Bias: " + str(np.mean(bias)))
+        print("Mean Var: " + str(np.mean(var)))
+
+        np.save('MC_v_avg.npy', v_avg)
+        np.save('MC_bias.npy', bias)
+
+    elif model_name== "TD0_prediction_all":
+        grid_world.visualize(
+            bias,
+            title=f"TD0 Prediction (Bias for 50 seeds)",
+            show=False,
+            filename=f"TD0_prediction_bias.png",
+        )
+        grid_world.visualize(
+            var,
+            title=f"TD0 Prediction (Variance for 50 seeds)",
+            show=False,
+            filename=f"TD0_prediction_var.png",
+        )
+        print("Mean Bias: " + str(np.mean(bias)))
+        print("Mean Var: " + str(np.mean(var)))
+
+        np.save('TD0_v_avg.npy', v_avg)
+        np.save('TD0_bias.npy', bias)
+
     
-    run_MC_policy_iteration(grid_world, 512000)
-    run_SARSA(grid_world, 512000)
-    run_Q_Learning(grid_world, 50000)
-    # end_time = time.time()
-    # print("time: " + str((end_time - start_time)/60) + " min")
+def MC_curve_analysis(iter_num, epsilon_set):
+    grid_world = init_grid_world("maze.txt")
+    all_lr = []
+    all_loss = []
+    
+    for e in epsilon_set:
+        print(e)
+        policy_iteration = MonteCarloPolicyIteration(
+                grid_world, 
+                discount_factor=DISCOUNT_FACTOR,
+                learning_rate=LEARNING_RATE,
+                epsilon= e,
+        )
+        policy_iteration.run(max_episode=iter_num)
+        lr = policy_iteration.learning_curve
+        loss = policy_iteration.loss_curve
+        all_lr.append(lr)
+        all_loss.append(loss)
+    
+    plt.figure()
+    for i in range(epsilon_set):
+        plt.plot(range(1, len(lr[i])+1), lr, label=f'epsilon = {epsilon_set[i]}')
+
+    plt.xlabel('Episode')
+    plt.ylabel('Average Non-discounted Episodic Reward')
+    plt.title('Learning Curve')
+    plt.legend()
+    plt.savefig('MC_learning_curve.png', dpi=300, bbox_inches='tight') 
+    plt.show()
+
+    plt.figure()
+    for i in range(epsilon_set):
+        plt.plot(range(1, len(loss[i])+1), loss, label=f'epsilon = {epsilon_set[i]}')
+    plt.xlabel('Episode')
+    plt.ylabel('Average Non-discounted Episodic Loss')
+    plt.title('Loss Curve')
+    plt.legend()
+    plt.savefig('MC_loss_curve.png', dpi=300, bbox_inches='tight') 
+    plt.show()
+
+def wandb_analysis(iter_num, epsilon_set, model_name):
+    # start a new wandb run to track this script
+    
+    grid_world = init_grid_world("maze.txt")
+
+    for e in epsilon_set:
+        print("epsilon = " + str(e))
+        wandb.init(project=model_name + "_abs", name="epsilon = " + str(e))
+        if model_name == "MC":
+
+            policy_iteration = MonteCarloPolicyIteration(
+                    grid_world, 
+                    discount_factor=DISCOUNT_FACTOR,
+                    learning_rate=LEARNING_RATE,
+                    epsilon= e,
+            )
+        elif model_name == "SARSA":
+            policy_iteration = SARSA(
+                    grid_world, 
+                    discount_factor=DISCOUNT_FACTOR,
+                    learning_rate=LEARNING_RATE,
+                    epsilon= e,
+                    )
+        elif model_name == "Q_Learning":
+
+            policy_iteration = Q_Learning(
+                    grid_world, 
+                    discount_factor=DISCOUNT_FACTOR,
+                    learning_rate=LEARNING_RATE,
+                    epsilon= e,
+                    buffer_size=BUFFER_SIZE,
+                    update_frequency=UPDATE_FREQUENCY,
+                    sample_batch_size=SAMPLE_BATCH_SIZE,
+                    )
+        policy_iteration.run(max_episode=iter_num)
+        # lr = policy_iteration.learning_curve
+        # loss = policy_iteration.loss_curve
+        wandb.finish()
+ 
+
+if __name__ == "__main__":
+    # analysis("MC_prediction_all")
+    # analysis("TD0_prediction_all")
+    
+    iter_num = 512000
+    epsilon_set = [0.1, 0.2, 0.3, 0.4]
+    # wandb_analysis(iter_num, epsilon_set, "MC")
+    wandb_analysis(iter_num, epsilon_set, "SARSA")
+    # wandb_analysis(iter_num, epsilon_set, "Q_Learning")
+    # Matplot
+    # MC_curve_analysis(iter_num, epsilon_set)
+    
+    # grid_world = init_grid_world("maze.txt",INIT_POS)
+    # 2-1
+    # run_MC_prediction(grid_world,seed)
+    # run_TD_prediction(grid_world,seed)
+    # run_NstepTD_prediction(grid_world,seed)
+
+    # 2-2
+    # grid_world = init_grid_world("maze.txt")
+    # run_MC_policy_iteration(grid_world, 512000)
+    # run_SARSA(grid_world, 512000)
+    # run_Q_Learning(grid_world, 50000)
