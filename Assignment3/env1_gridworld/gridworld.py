@@ -441,11 +441,12 @@ class GridWorld:
         # truncation 表示是否由於外部條件而強制終止，例如達到最大步數限制或其他設定的限制。
         self._step_count += 1
         state_coord = self._state_list[self._current_state]
+        
         if self._step_count >= self.max_step:
             truncation = True
         else:
             truncation = False
-        
+
         # Terminal states
         if self._is_goal_state(state_coord):
             next_state = self._current_state
@@ -461,49 +462,67 @@ class GridWorld:
         
         if self._is_lava_state(state_coord):
             next_state = self._current_state
-            return next_state, self._step_reward, True, truncation
+            return next_state, self.step_reward, True, truncation
         
         # Non Terminal states
-        # 一旦採到bait後，他後面的step都會有bait_step_penalty
-        if self._is_bait_state(state_coord):
-            next_state_coord = self._get_next_state(state_coord, action)
-            next_state = self._state_list.index(next_state_coord)
-            self._current_state = next_state
-            self.bite()
-            return next_state, self._bait_reward, False, truncation
-        
-        # 拿到key，door就可以打開
-        if self._is_key_state(state_coord):
-            self.open_door()
-            next_state_coord = self._get_next_state(state_coord, action)
-            next_state = self._state_list.index(next_state_coord)
-            # change environment
-            if self._is_baited:
-                next_state += len(self._state_list)
-            self._current_state = next_state
-
-            return next_state, self.step_reward, False, truncation
-                
-        if self._is_door_state(state_coord):
-            next_state_coord = self._get_next_state(state_coord, action)
-            next_state = self._state_list.index(next_state_coord)
-            self._current_state = next_state
-            return next_state, self.step_reward, False, truncation 
-
-        # Portal
-        if self._is_portal_state(state_coord):
-            for i in range(2):
-                if not self._current_state == self._portal_state[i]:
-                    next_state = self._portal_state[i]
-                    self._current_state = next_state
-                    print(next_state)
-            return next_state, self.step_reward, False, truncation            
-
         # Empty State
         next_state_coord = self._get_next_state(state_coord, action)
         next_state = self._state_list.index(next_state_coord)
+        reward = self.step_reward
+        # 拿到key，door就可以打開
+        if self._is_key_state(state_coord):  
+            self.open_door()
+            # reward = self.step_reward
+            # next_state_coord = self._get_next_state(state_coord, action)
+            # next_state = self._state_list.index(next_state_coord)           
+            # self._current_state = next_state
+            # if self._is_opened:
+            #     next_state += len(self._state_list)              
+            # return next_state, self.step_reward, False, truncation
+       
+
+        if self._is_door_state(state_coord):
+            if self._is_closed:
+                next_state = self._current_state
+                # return self._current_state, self.step_reward, False, truncation
+             
+            # next_state_coord = self._get_next_state(state_coord, action)
+            # next_state = self._state_list.index(next_state_coord)
+            # self._current_state = next_state
+            # if self._is_opened:
+            #     next_state += len(self._state_list)   
+            # return next_state, self.step_reward, False, truncation 
+
+        # Portal
+        # if self._is_portal_state(state_coord):
+        #     next_state_coord = self._get_next_state(state_coord, action)
+        #     if not self._is_valid_state(next_state_coord): # Hit the wall
+        #         next_state_coord = self.portal_next_state[state_coord]
+        #         next_state = self._state_list.index(next_state_coord)
+        #         self._current_state = next_state
+        #         return next_state, self.step_reward, False, truncation            
+
+
         self._current_state = next_state
-        return next_state, self.step_reward, False, truncation
+
+        # 一旦採到bait後，他後面的step都會有bait_step_penalty(一踩到bait就會拿到bait reward，而不是採到之後)
+        if self._is_bait_state(next_state_coord):
+            self.bite()
+            reward = self._bait_reward
+            # next_state_coord = self._get_next_state(state_coord, action)
+            # next_state = self._state_list.index(next_state_coord)
+            # self._current_state = next_state
+            # if self._is_opened:
+            #     next_state += len(self._state_list)   
+            # return next_state, self._bait_reward, False, truncation
+                
+        # 為了避免agent在記錄的時候會用到之前採到還沒開門的狀態，
+        # 因此需要在開門後讓agent接收到的next state變不一樣，以用來辨認這是開門後的狀態
+        # 但實際上在gridworld中還是保持原本的那個state cell
+        if self._is_opened:
+            next_state += len(self._state_list)  
+        # return next_state, self.step_reward, False, truncation
+        return next_state, reward, False, truncation
 
         # raise NotImplementedError
 
@@ -515,8 +534,11 @@ class GridWorld:
         """
         # TODO implement the reset function here
         # Close the door and Place the bait
-        self.close_door()
-        self.place_bait()        
+        if self._is_opened:
+            self.close_door()
+            
+        if self._is_baited:
+            self.place_bait()    
         # Reset the step count        
         self._step_count = 0
 
@@ -531,6 +553,7 @@ class GridWorld:
             selected_state = empty_state
         choose_state_coord = selected_state[np.random.randint(len(selected_state))]
         self._current_state = self._state_list.index(tuple(choose_state_coord))
+        # self._current_state = self._init_states[np.random.randint(len(self._init_states))]
         return self._current_state        
 
         # raise NotImplementedError
