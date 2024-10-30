@@ -471,27 +471,10 @@ class GridWorld:
         reward = self.step_reward
         # 拿到key，door就可以打開
         if self._is_key_state(state_coord):  
-            self.open_door()
-            # reward = self.step_reward
-            # next_state_coord = self._get_next_state(state_coord, action)
-            # next_state = self._state_list.index(next_state_coord)           
-            # self._current_state = next_state
-            # if self._is_opened:
-            #     next_state += len(self._state_list)              
-            # return next_state, self.step_reward, False, truncation
-       
+            self.open_door()       
 
         if self._is_door_state(state_coord):
-            if self._is_closed:
-                next_state = self._current_state
-                # return self._current_state, self.step_reward, False, truncation
-             
-            # next_state_coord = self._get_next_state(state_coord, action)
-            # next_state = self._state_list.index(next_state_coord)
-            # self._current_state = next_state
-            # if self._is_opened:
-            #     next_state += len(self._state_list)   
-            # return next_state, self.step_reward, False, truncation 
+            next_state = self._current_state
 
         # Portal
         # if self._is_portal_state(state_coord):
@@ -503,22 +486,17 @@ class GridWorld:
         #         return next_state, self.step_reward, False, truncation            
 
 
-        self._current_state = next_state
+        
 
         # 一旦採到bait後，他後面的step都會有bait_step_penalty(一踩到bait就會拿到bait reward，而不是採到之後)
         if self._is_bait_state(next_state_coord):
             self.bite()
             reward = self._bait_reward
-            # next_state_coord = self._get_next_state(state_coord, action)
-            # next_state = self._state_list.index(next_state_coord)
-            # self._current_state = next_state
-            # if self._is_opened:
-            #     next_state += len(self._state_list)   
-            # return next_state, self._bait_reward, False, truncation
                 
         # 為了避免agent在記錄的時候會用到之前採到還沒開門的狀態，
         # 因此需要在開門後讓agent接收到的next state變不一樣，以用來辨認這是開門後的狀態
         # 但實際上在gridworld中還是保持原本的那個state cell
+        self._current_state = next_state
         if self._is_opened:
             next_state += len(self._state_list)  
         # return next_state, self.step_reward, False, truncation
