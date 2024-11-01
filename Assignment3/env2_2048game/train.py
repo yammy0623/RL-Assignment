@@ -20,13 +20,13 @@ register(
 my_config = {
     "run_id": "example",
 
-    "algorithm": PPO,
+    "algorithm": A2C,
     "policy_network": "MlpPolicy",
     "save_path": "models/sample_model",
 
-    "epoch_num": 5,
-    "timesteps_per_epoch": 1000,
-    "eval_episode_num": 10,
+    "epoch_num": 100,
+    "timesteps_per_epoch": 10000,
+    "eval_episode_num": 20,
     "learning_rate": 1e-4,
 }
 
@@ -92,8 +92,8 @@ def train(eval_env, model, config):
             print("Saving Model")
             current_best = avg_score
             save_path = config["save_path"]
-            # model.save(f"{save_path}/{epoch}")
-
+            model.save(f"{save_path}/{epoch}")
+            print(epoch)
         # print("---------------")
 
 
@@ -104,7 +104,8 @@ if __name__ == "__main__":
     #     project="assignment_3",
     #     config=my_config,
     #     sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
-    #     id=my_config["run_id"]
+    #     id=my_config["run_id"],
+    #     name = "A2C"
     # )
 
     # Create training environment 
@@ -125,3 +126,4 @@ if __name__ == "__main__":
     )
 
     train(eval_env, model, my_config)
+    # wandb.finish()
