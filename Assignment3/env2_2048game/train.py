@@ -24,9 +24,9 @@ my_config = {
     "policy_network": "MlpPolicy",
     "save_path": "models/sample_model",
 
-    "epoch_num": 100,
+    "epoch_num": 200,
     "timesteps_per_epoch": 10000,
-    "eval_episode_num": 20,
+    "eval_episode_num": 100, # 增加
     "learning_rate": 1e-4,
 }
 

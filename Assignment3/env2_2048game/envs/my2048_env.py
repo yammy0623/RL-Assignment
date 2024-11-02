@@ -130,9 +130,15 @@ class My2048Env(gym.Env):
             logging.debug("Illegal move")
             info['illegal_move'] = True
             reward = self.illegal_move_reward
+            threshold = 5
 
             # TODO: Modify this part for the agent to have a chance to explore other actions (optional)
-            done = True
+            self.foul_count += 1
+            if self.foul_count >= threshold:
+                done = True
+                self.foul_count = 0
+            else:
+                done = True
 
         truncate = False
         info['highest'] = self.highest()
