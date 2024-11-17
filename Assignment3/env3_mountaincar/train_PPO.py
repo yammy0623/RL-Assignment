@@ -20,14 +20,14 @@ warnings.filterwarnings("ignore")
 my_config = {
     "run_id": "car",
 
-    "algorithm": A2C,
+    "algorithm": PPO,
     "policy_network": "MlpPolicy",
     "save_path": "models/sample_model",
 
     "epoch_num": 100,
     "timesteps_per_epoch": 10000,
     "eval_episode_num": 10,
-    "learning_rate": 1e-5,
+    "learning_rate": 1e-3,
 }
 
 
@@ -102,7 +102,7 @@ def train(eval_env, model, config):
             print("Saving Model")
             current_best = avg_highest
             save_path = config["save_path"]
-            model.save(f"{save_path}/A2C/{epoch}")
+            model.save(f"{save_path}/DQN/{epoch}")
             print(epoch)
         # print("---------------")
 
@@ -111,11 +111,11 @@ if __name__ == "__main__":
 
     # Create wandb session (Uncomment to enable wandb logging)
     run = wandb.init(
-        project="rl_hw3_MountainCar_A2C",
+        project="rl_hw3_MountainCar_PPO",
         config=my_config,
         sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
         id=my_config["run_id"],
-        name="A2C"
+        name="PPO"
     )
 
     # Create training environment 

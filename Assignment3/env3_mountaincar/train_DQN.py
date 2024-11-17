@@ -90,8 +90,8 @@ def train(eval_env, model, config):
         print()
         wandb.log(
             {"epoch": epoch,
-             "avg_highest": avg_highest,
-             "avg_score": avg_score
+             "position": avg_highest,
+             "reward": avg_score
              }
         )
         
@@ -102,7 +102,7 @@ def train(eval_env, model, config):
             print("Saving Model")
             current_best = avg_highest
             save_path = config["save_path"]
-            model.save(f"{save_path}/{epoch}")
+            model.save(f"{save_path}/DQN/{epoch}")
             print(epoch)
         # print("---------------")
 
@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     # Create wandb session (Uncomment to enable wandb logging)
     run = wandb.init(
-        project="rl_hw3_MountainCar",
+        project="rl_hw3_MountainCar2",
         config=my_config,
         sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
         id=my_config["run_id"],

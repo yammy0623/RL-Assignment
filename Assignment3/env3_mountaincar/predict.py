@@ -58,16 +58,38 @@ if __name__ == "__main__":
     # (You don't necessarily need to use PPO for training)
     # model = PPO.load(model_path)
     # model = A2C.load(model_path)
-    model = DQN.load(model_path)
-    
+    max_episodes = 1000
     eval_num = 100
-    score, highest = evaluation(env, model, True, eval_num)
+    model = DQN.load(model_path)
+    model.eval()
+    frames = []
 
-    print("Avg_score:  ", np.sum(score)/eval_num)
-    print("Avg_highest:", np.sum(highest)/eval_num)
+    # Testing loop over episodes
+    for episode in range(1, max_episodes+1):         
+        obs, info = env.reset(seed=eval_num-1)
+        env.render()
+        truncation = False
+        step_size = 0
+        episode_reward = 0
+                                                        
+        while not done and not truncation:
+            
+            action, next_state = model.predict(obs, deterministic=True)
+            obs, reward, done, _, info = env.step(action)
+            # Capture the current state as an image for GIF
+            env.render()           
+            state = next_state
+            episode_reward += reward
+            step_size += 1
+                                                                                                                
+        # Print log            
+        result = (f"Episode: {episode}, "
+                    f"Steps: {step_size:}, "
+                    f"Reward: {episode_reward:.2f}, ")
+        print(result)
+        # Create GIF from collected frames
+        # gif_filename = "test_episode.gif"
+        # imageio.mimsave(gif_filename, frames, duration=0.1)  # Adjust duration to control speed
+        # print(f"GIF saved as {gif_filename}")
 
-
-    print(f"Counts: (Total of {eval_num} rollouts)")
-    c = Counter(highest)
-    for item in (sorted(c.items(),key = lambda i: i[0])):
-        print(f"{item[0]}: {item[1]}")
+    

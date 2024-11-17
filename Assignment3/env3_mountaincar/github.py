@@ -576,7 +576,7 @@ class Model_TrainTest():
                 action = self.agent.select_action(state)
                 next_state, reward, done, truncation, _ = self.env.step(action)
                 # Capture the current state as an image for GIF
-                # self.env.render()           
+                self.env.render()           
                 state = next_state
                 episode_reward += reward
                 step_size += 1
@@ -587,9 +587,9 @@ class Model_TrainTest():
                       f"Reward: {episode_reward:.2f}, ")
             print(result)
             # Create GIF from collected frames
-            gif_filename = "test_episode.gif"
-            imageio.mimsave(gif_filename, frames, duration=0.1)  # Adjust duration to control speed
-            print(f"GIF saved as {gif_filename}")
+            # gif_filename = "test_episode.gif"
+            # imageio.mimsave(gif_filename, frames, duration=0.1)  # Adjust duration to control speed
+            # print(f"GIF saved as {gif_filename}")
 
         # pygame.quit() # close the rendering window
         

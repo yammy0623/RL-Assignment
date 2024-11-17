@@ -76,7 +76,7 @@ class MountainCarEnv(gym.Env):
 
 
         # (4) Check if the car is coming down with velocity from left and goes with full velocity to right
-        initial_position = 0.40842572 # Normalized value of initial position of the car which is extracted manually
+        initial_position = self.min_position # Normalized value of initial position of the car which is extracted manually
         
         if velocity > 0.3 and position > initial_position + 0.1:
             reward += 1 + 2 * position  # Add a bonus reward for this desired behavior
@@ -102,7 +102,7 @@ class MountainCarEnv(gym.Env):
             'goal_reached': done,
             'truncate': truncate
         }
-        return np.array(self.state, dtype=np.float32), reward, done, info
+        return np.array(self.state, dtype=np.float32), reward, done, truncate, info
 
     def reset(self, seed=None, options=None):
         self.seed(seed=seed)
